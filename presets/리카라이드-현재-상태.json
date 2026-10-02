@@ -1,0 +1,127 @@
+{
+  "version": 1,
+  "name": "리카라이드 현재 상태",
+  "description": "",
+  "savedAt": 1790907173315,
+  "config": {
+    "countries": [
+      {
+        "id": "co-한국",
+        "name": "한국"
+      },
+      {
+        "id": "co-태국",
+        "name": "태국"
+      }
+    ],
+    "cities": [
+      {
+        "id": "ci-인천",
+        "name": "인천",
+        "countryId": "co-한국",
+        "serviceIds": [
+          "sv-호출버스",
+          "sv-공항 셔틀"
+        ]
+      },
+      {
+        "id": "ci-서울",
+        "name": "서울",
+        "countryId": "co-한국",
+        "serviceIds": [
+          "sv-호출버스",
+          "sv-전담 기사",
+          "sv-광역 호출버스"
+        ]
+      },
+      {
+        "id": "ci-치앙마이",
+        "name": "치앙마이",
+        "countryId": "co-태국",
+        "serviceIds": [
+          "sv-전담 기사"
+        ]
+      }
+    ],
+    "services": [
+      {
+        "id": "sv-호출버스",
+        "name": "호출버스"
+      },
+      {
+        "id": "sv-광역 호출버스",
+        "name": "광역 호출버스"
+      },
+      {
+        "id": "sv-전담 기사",
+        "name": "전담 기사"
+      },
+      {
+        "id": "sv-공항 셔틀",
+        "name": "공항 셔틀"
+      }
+    ]
+  },
+  "notices": [
+    {
+      "id": "4d333035-dc00-4b47-b09d-fd9e5cfeb88a",
+      "publishedAt": 1790845963848,
+      "type": "mobility",
+      "title": "[시범] 이동 서비스 공지",
+      "body": "시범 발행된 공지입니다. 본문을 입력하지 않아 기본 문구가 표시됩니다.",
+      "important": true,
+      "period": {
+        "start": 1790845500000,
+        "end": 1792746300000
+      },
+      "countries": {
+        "all": false,
+        "includeFuture": false,
+        "ids": [
+          "co-한국"
+        ]
+      },
+      "cities": {
+        "all": false,
+        "includeFuture": false,
+        "ids": [
+          "ci-인천",
+          "ci-서울"
+        ]
+      },
+      "services": {
+        "all": false,
+        "includeFuture": false,
+        "ids": [
+          "sv-공항 셔틀"
+        ]
+      }
+    }
+  ],
+  "user": {
+    "countryId": "co-한국",
+    "cityIds": [
+      "ci-인천",
+      "ci-서울"
+    ],
+    "reservations": [
+      {
+        "id": "1d92f5be-7340-442e-b28b-e4cefcb43522",
+        "cityId": "ci-인천",
+        "serviceId": "sv-공항 셔틀",
+        "start": 1792659900000,
+        "end": 1792667100000
+      }
+    ],
+    "now": 1790845500000,
+    "dismissedPopupIds": [],
+    "readNoticeIds": [],
+    "closedCards": []
+  },
+  "active": {
+    "source": "saved",
+    "id": "리카라이드-현재-상태.json",
+    "label": "리카라이드 현재 상태",
+    "description": ""
+  }
+}

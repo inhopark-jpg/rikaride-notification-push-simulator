@@ -1,0 +1,19 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="12" height="24" viewBox="0 0 12 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Chevron--right" clip-path="url(#clip0_0_53)">
+<path id="black-outlined" d="M10.535 11.9648L10.5711 12L10.535 12.0352L2.99982 19.5703L1.87971 18.4502L8.3299 12L1.87971 5.5498L2.99982 4.42969L10.535 11.9648Z" fill="#878D96" stroke="#878D96" stroke-width="0.1"/>
+<path id="black-no-outline" opacity="0" d="M0 0H12V24H0V0Z" fill="#878D96"/>
+<g id="white" opacity="0">
+<mask id="path-3-outside-1_0_53" maskUnits="userSpaceOnUse" x="-1" y="-1" width="14" height="26" fill="black">
+<rect fill="white" x="-1" y="-1" width="14" height="26"/>
+<path d="M0 0H12V24H0V0Z"/>
+</mask>
+<path d="M0 0H12V24H0V0Z" fill="white"/>
+<path d="M0 0V-0.1H-0.1V0H0ZM12 0H12.1V-0.1H12V0ZM12 24V24.1H12.1V24H12ZM0 24H-0.1V24.1H0V24ZM0 0V0.1H12V0V-0.1H0V0ZM12 0H11.9V24H12H12.1V0H12ZM12 24V23.9H0V24V24.1H12V24ZM0 24H0.1V0H0H-0.1V24H0Z" fill="white" mask="url(#path-3-outside-1_0_53)"/>
+</g>
+</g>
+<defs>
+<clipPath id="clip0_0_53">
+<rect width="12" height="24" fill="white"/>
+</clipPath>
+</defs>
+</svg>
