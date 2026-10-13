@@ -166,33 +166,32 @@ function NoticeCard({ card, single, onClose }: { card: Card; single: boolean; on
   return (
     <article
       title={whyTitle(card)}
-      className={`relative shrink-0 snap-start rounded-[20px] border py-3.5 pl-4 pr-10 ${
+      className={`flex shrink-0 snap-start items-center gap-2.5 rounded-[20px] border py-3.5 pl-4 pr-2.5 ${
         single ? 'w-full' : 'w-[296px]'
       } ${notice.important ? 'border-[#f7c9ca] bg-[#fff5f5]' : 'border-[#e3e6ea] bg-white'}`}
     >
+      {/* 공지임을 알리는 아이콘: 일반은 벨, 중요는 경고 */}
+      {notice.important ? (
+        <WarningAlt size={22} aria-label="중요 공지" className="shrink-0 text-[#ed3c3f]" />
+      ) : (
+        <Notification size={22} aria-label="공지" className="shrink-0 text-[#121619]" />
+      )}
+      {/* 제목은 최대 2줄 (어드민 제목 권장 글자 수: NOTICE_TITLE_MAX) */}
+      <p
+        className={`line-clamp-2 min-w-0 flex-1 break-words text-[18px] font-semibold leading-[27px] ${
+          notice.important ? 'text-[#ed3c3f]' : 'text-[#121619]'
+        }`}
+      >
+        {notice.title}
+      </p>
       <button
         type="button"
         aria-label="공지 닫기"
-        className="absolute right-2.5 top-2.5 flex size-7 items-center justify-center rounded-full text-[#878d96] hover:bg-black/5"
+        className="flex size-7 shrink-0 items-center justify-center rounded-full text-[#878d96] hover:bg-black/5"
         onClick={onClose}
       >
         <Close size={18} />
       </button>
-      <div className="flex items-start gap-2.5">
-        {/* 공지임을 알리는 아이콘: 일반은 벨, 중요는 경고 */}
-        {notice.important ? (
-          <WarningAlt size={22} aria-label="중요 공지" className="mt-[2.5px] shrink-0 text-[#ed3c3f]" />
-        ) : (
-          <Notification size={22} aria-label="공지" className="mt-[2.5px] shrink-0 text-[#121619]" />
-        )}
-        <p
-          className={`min-w-0 break-words text-[18px] font-semibold leading-[27px] ${
-            notice.important ? 'text-[#ed3c3f]' : 'text-[#121619]'
-          }`}
-        >
-          {notice.title}
-        </p>
-      </div>
     </article>
   )
 }

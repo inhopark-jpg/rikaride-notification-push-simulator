@@ -3,8 +3,7 @@ import { AdminColumn } from './components/AdminColumn'
 import { ConfigColumn } from './components/ConfigColumn'
 import { ResultColumn } from './components/ResultColumn'
 import { UserColumn } from './components/UserColumn'
-import { EMPTY_CONFIG } from './domain/config'
-import { buildPresets } from './domain/presets'
+import { baseConfig, buildPresets } from './domain/presets'
 import { SAVED_VERSION } from './domain/saved'
 import type { Notice, ServiceConfig, UserState } from './domain/types'
 import { evaluateAll, sanitizeUser } from './domain/visibility'
@@ -41,7 +40,8 @@ function initialScenario(): Scenario {
   const preset = buildPresets(currentMinute()).find((p) => p.id === urlPresetId)
   return preset
     ? { config: preset.config, notices: preset.notices, user: preset.user, formKey: 0 }
-    : { config: EMPTY_CONFIG, notices: [], user: emptyUser(), formKey: 0 }
+    : // 자동 저장이 없으면(처음 실행, 정적 호스팅) 기본 서비스 구성으로 시작
+      { config: baseConfig(), notices: [], user: emptyUser(), formKey: 0 }
 }
 
 export default function App() {

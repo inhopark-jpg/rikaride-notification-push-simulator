@@ -50,6 +50,9 @@ function user(partial: Partial<UserState> = {}): UserState {
   }
 }
 
+/** 서비스 랜딩 노출 위치 표기 */
+const landings = (...names: string[]) => names.map((n) => `landing:${serviceId(n)}`)
+
 const surfaces = (n: Notice, u: UserState, c: ServiceConfig = config) =>
   evaluateNotice(n, c, u).placements.map((p) =>
     p.serviceId ? `${p.surface}:${p.serviceId}` : p.surface,
@@ -175,21 +178,44 @@ describe('이동 서비스 공지: 노출 위치', () => {
 describe('이동 서비스 공지: 서비스 전체 판정', () => {
   const seoul = user({ cityIds: [cityId('서울')] })
 
-  it('"전체 선택" 체크 → Ride 탭', () => {
+  it('"전체 선택" 체크 → Ride 탭 + 각 서비스 랜딩', () => {
     const notice = publish({ type: 'mobility', countries: co('한국'), cities: ci('서울'), services: ALL })
-    expect(isServiceWide(notice, config)).toBe(true)
-    expect(surfaces(notice, seoul)).toEqual(['ride', 'notification'])
+    expect(isServiceWide(notice, config, seoul)).toBe(true)
+    expect(surfaces(notice, seoul)).toEqual([
+      'ride',
+      ...landings('호출버스', '광역 호출버스', '전담 기사', '공항 셔틀'),
+      'notification',
+    ])
   })
 
-  it('선택 가능한 서비스를 전부 개별 선택해도 서비스 전체로 취급', () => {
+  it('사용자가 이용 가능한 서비스를 전부 포함하면 개별 선택이어도 서비스 전체', () => {
     const notice = publish({
       type: 'mobility',
       countries: co('한국'),
       cities: ci('부산'),
       services: sv('호출버스', '공항 셔틀'), // 부산 제공 서비스 전부
     })
-    expect(isServiceWide(notice, config)).toBe(true)
-    expect(surfaces(notice, user({ cityIds: [cityId('부산')] }))).toEqual(['ride', 'notification'])
+    const busan = user({ cityIds: [cityId('부산')] })
+    expect(isServiceWide(notice, config, busan)).toBe(true)
+    expect(surfaces(notice, busan)).toEqual(['ride', ...landings('호출버스', '공항 셔틀'), 'notification'])
+  })
+
+  it('기준은 사용자가 선택한 도시: 대상 도시에 서비스가 하나뿐이어도 다른 도시를 함께 선택하면 랜딩', () => {
+    // 인천은 공항 셔틀만 제공
+    const notice = publish({ type: 'mobility', countries: co('한국'), cities: ci('인천'), services: sv('공항 셔틀') })
+    const incheon = user({ cityIds: [cityId('인천')] })
+    expect(surfaces(notice, incheon)).toEqual(['ride', ...landings('공항 셔틀'), 'notification'])
+
+    // 부산(호출버스도 제공)을 함께 선택하면 공항 셔틀이 일부 서비스가 되어 랜딩으로
+    const both = user({ cityIds: [cityId('인천'), cityId('부산')] })
+    expect(isServiceWide(notice, config, both)).toBe(false)
+    const v = evaluateAll([notice], config, both)
+    expect(v.ride).toHaveLength(0)
+    const shuttle = v.landings.find((l) => l.service.id === serviceId('공항 셔틀'))!
+    expect(shuttle.cities.map((c) => [c.city.name, c.cards.length])).toEqual([
+      ['부산', 0],
+      ['인천', 1],
+    ])
   })
 
   it('중요 공지는 특정 서비스 지정이어도 Ride 탭과 해당 랜딩에 모두 노출', () => {
@@ -231,7 +257,7 @@ describe('이동 서비스 공지: 서비스 전체 판정', () => {
       cities: ci('서울'),
       services: sv('호출버스', '전담 기사'),
     })
-    expect(isServiceWide(notice, config)).toBe(false)
+    expect(isServiceWide(notice, config, seoul)).toBe(false)
   })
 
   it('서비스 전체라도 사용자가 그 도시를 선택하지 않았으면 Ride 탭에 미노출', () => {
@@ -239,13 +265,13 @@ describe('이동 서비스 공지: 서비스 전체 판정', () => {
     expect(surfaces(notice, seoul)).toEqual([])
   })
 
-  it('전체 선택(차후 미포함): 신규 서비스가 추가되면 Ride 탭에서 각 서비스 랜딩으로 바뀐다', () => {
+  it('전체 선택(차후 미포함): 신규 서비스가 추가되면 Ride 탭에서 빠지고 기존 서비스 랜딩에만', () => {
     const notice = publish({ type: 'mobility', countries: co('한국'), cities: ci('부산'), services: ALL })
     const busan = user({ cityIds: [cityId('부산')] })
-    expect(surfaces(notice, busan)).toEqual(['ride', 'notification'])
+    expect(surfaces(notice, busan)).toEqual(['ride', ...landings('호출버스', '공항 셔틀'), 'notification'])
 
     const later = addService(config, '관광 택시', true)
-    expect(isServiceWide(notice, later)).toBe(false)
+    expect(isServiceWide(notice, later, busan)).toBe(false)
     // 기존 서비스 랜딩에만 보이고, 신규 서비스 랜딩에는 없다
     expect(surfaces(notice, busan, later)).toEqual([
       `landing:${serviceId('호출버스')}`,
@@ -266,6 +292,7 @@ describe('이동 서비스 공지: 서비스 전체 판정', () => {
     const later = addService(config, '관광 택시', true)
     expect(surfaces(notice, user({ cityIds: [cityId('부산')] }), later)).toEqual([
       'ride',
+      ...landings('호출버스', '공항 셔틀', '관광 택시'),
       'notification',
     ])
   })
@@ -285,7 +312,7 @@ describe('이동 서비스 공지: 서비스 전체 판정', () => {
     ])
   })
 
-  it('공지 대상 도시에서 제공하지 않는 신규 서비스는 서비스 전체 여부에 영향이 없다', () => {
+  it('사용자가 선택하지 않은 도시의 신규 서비스는 서비스 전체 여부에 영향이 없다', () => {
     const notice = publish({ type: 'mobility', countries: co('한국'), cities: ci('부산'), services: ALL })
     // 관광 택시는 서울에서만 제공
     let later = addService(config, '관광 택시')
@@ -297,6 +324,7 @@ describe('이동 서비스 공지: 서비스 전체 판정', () => {
     }
     expect(surfaces(notice, user({ cityIds: [cityId('부산')] }), later)).toEqual([
       'ride',
+      ...landings('호출버스', '공항 셔틀'),
       'notification',
     ])
   })
@@ -323,7 +351,7 @@ describe('전체 선택 + 차후 추가 포함', () => {
 
     const later = addCity(config, countryId('한국'), '대구', [serviceId('호출버스')])
     const daegu = user({ cityIds: [cityId('대구')] })
-    expect(surfaces(future, daegu, later)).toEqual(['ride', 'notification'])
+    expect(surfaces(future, daegu, later)).toEqual(['ride', ...landings('호출버스'), 'notification'])
     expect(surfaces(snapshot, daegu, later)).toEqual([])
   })
 
@@ -335,7 +363,7 @@ describe('전체 선택 + 차후 추가 포함', () => {
     let later = addService(config, '관광 택시')
     later = addCity(later, countryId('한국'), '제주', [serviceId('관광 택시')])
     const jeju = user({ cityIds: [cityId('제주')] })
-    expect(surfaces(future, jeju, later)).toEqual(['ride', 'notification'])
+    expect(surfaces(future, jeju, later)).toEqual(['ride', ...landings('관광 택시'), 'notification'])
     expect(evaluateNotice(snapshot, later, jeju).hiddenReasons).toEqual([
       '선택한 도시(제주)에 해당 서비스 미제공',
     ])
@@ -485,10 +513,15 @@ describe('알림 센터', () => {
     const notice = publish({
       type: 'mobility',
       countries: co('한국'),
-      cities: ci('인천', '서울', '부산'),
+      cities: ci('인천', '부산'),
       services: sv('호출버스', '공항 셔틀'),
     })
-    const e = evaluateNotice(notice, config, user({ cityIds: [cityId('인천'), cityId('부산')] }))
+    // 서울도 선택해서 이용 가능한 서비스가 더 많다 → 서비스 전체가 아니므로 서비스 배지가 붙는다
+    const e = evaluateNotice(
+      notice,
+      config,
+      user({ cityIds: [cityId('인천'), cityId('부산'), cityId('서울')] }),
+    )
     expect(e.badges).toEqual({ cities: ['부산', '인천'], services: ['공항 셔틀', '호출버스'] })
   })
 
@@ -581,13 +614,13 @@ describe('프리셋 시나리오', () => {
     expect(v.hidden).toHaveLength(2)
   })
 
-  it('인천 호출버스 공지: 호출버스·공항 셔틀 랜딩에 각각 노출, Ride 탭에는 없음', () => {
+  it('인천 호출버스 공지: 인천 서비스를 모두 지정한 공지는 Ride 탭 + 랜딩, 일부만 지정한 공지는 랜딩만', () => {
     const v = view('incheon-bus')
-    expect(v.ride).toHaveLength(0)
+    expect(v.ride.map((c) => c.notice.title)).toEqual(['호출버스·공항 셔틀 요금 조정'])
     const landing = (name: string) =>
-      v.landings.find((l) => l.service.name === name)?.cities[0]?.cards
-    expect(landing('호출버스')).toHaveLength(2)
-    expect(landing('공항 셔틀')).toHaveLength(1)
+      v.landings.find((l) => l.service.name === name)?.cities[0]?.cards.map((c) => c.notice.title)
+    expect(landing('호출버스')).toEqual(['인천 호출버스 운행 시간 변경', '호출버스·공항 셔틀 요금 조정'])
+    expect(landing('공항 셔틀')).toEqual(['호출버스·공항 셔틀 요금 조정'])
     expect(v.notifications).toHaveLength(2)
     expect(v.hidden.map((e) => e.hiddenReasons[0])).toEqual([
       '선택한 도시(인천)가 도시 scope에 없음',

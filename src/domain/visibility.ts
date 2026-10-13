@@ -128,29 +128,17 @@ export function availableServices(config: ServiceConfig, user: UserState): Servi
   return config.services.filter((s) => offered.has(s.id))
 }
 
-/** 공지 대상 도시들에서 지금 제공되는 서비스. "서비스 전체"의 기준 집합이다. */
-export function servicesInNoticeCities(notice: Notice, config: ServiceConfig): Service[] {
-  if (!notice.cities) return []
-  const cityScope = notice.cities
-  const offered = new Set(
-    config.cities
-      .filter((c) => inScope(notice.countries, c.countryId) && inScope(cityScope, c.id))
-      .flatMap((c) => c.serviceIds),
-  )
-  return config.services.filter((s) => offered.has(s.id))
-}
-
 /**
- * 지금 시점에 "서비스 전체" 공지인지 (→ Ride 탭).
- * 서비스 scope가 공지 대상 도시들에서 현재 제공되는 서비스를 전부 덮을 때만 true.
- * 발행 때는 전체였어도, 이후 추가된 서비스가 scope에 없으면 더 이상 전체가 아니다.
+ * 이 사용자에게 "서비스 전체" 공지인지 (→ Ride 탭).
+ * 기준은 사용자 앱이다: 사용자가 선택한 도시들에서 이용 가능한 서비스(Ride 탭 서비스 버튼)를
+ * 서비스 scope가 전부 포함하면 true. 공지 대상 도시 하나에 서비스가 몇 개인지는 보지 않는다.
+ * 예) 인천(호출버스만 제공) + 호출버스 공지: 인천만 선택한 사용자 → Ride 탭,
+ *     인천·제주(광역 호출버스도 제공)를 선택한 사용자 → 호출버스 랜딩
  */
-export function isServiceWide(notice: Notice, config: ServiceConfig): boolean {
+export function isServiceWide(notice: Notice, config: ServiceConfig, user: UserState): boolean {
   if (!notice.services) return false
-  const scope = notice.services
-  const current = servicesInNoticeCities(notice, config)
-  if (current.length === 0) return scope.all
-  return current.every((s) => inScope(scope, s.id))
+  const available = availableServices(config, user)
+  return available.length > 0 && available.every((s) => inScope(notice.services!, s.id))
 }
 
 // ── 공지 1건 판정 ──────────────────────────────────────────
@@ -190,7 +178,7 @@ export function evaluateNotice(notice: Notice, config: ServiceConfig, user: User
     let matchedServices: Service[] = []
     /** 선택한 도시 중 공지 대상 서비스를 실제 제공하는 도시 */
     let servedCities: City[] = []
-    const serviceWide = isServiceWide(notice, config)
+    const serviceWide = isServiceWide(notice, config, user)
 
     // 3. 도시, 4. 서비스 — 국가가 맞을 때만 의미가 있다
     if (countryOk) {
@@ -232,35 +220,29 @@ export function evaluateNotice(notice: Notice, config: ServiceConfig, user: User
     // 5. 위치 분기
     if (hiddenReasons.length === 0) {
       if (serviceWide) {
-        trace.push('서비스 scope가 대상 도시의 현재 제공 서비스를 모두 포함')
+        trace.push('서비스 scope가 선택한 도시에서 이용 가능한 서비스를 모두 포함')
         placements.push({ surface: 'ride', reason: '서비스 전체 scope → Ride 탭' })
       } else {
-        // "전체 선택"으로 발행했지만 이후 추가된 서비스 때문에 더는 전체가 아닌 경우
-        const outgrown = serviceScope.all
-        if (outgrown) {
-          const added = servicesInNoticeCities(notice, config).filter(
-            (s) => !inScope(serviceScope, s.id),
-          )
-          trace.push(
-            `발행 후 추가된 서비스(${join(added.map((s) => s.name))})가 scope에 없어 더 이상 서비스 전체가 아님`,
-          )
-        }
-        // 중요 공지는 서비스 전체가 아니어도 Ride 탭에 함께 표시한다 (랜딩 표시는 그대로)
+        // 선택한 도시에서 이용 가능하지만 이 공지가 빠뜨린 서비스 (전체 선택 후 신규 추가된 서비스 포함)
+        const missing = availableServices(config, user).filter((s) => !inScope(serviceScope, s.id))
+        trace.push(
+          `선택한 도시에서 이용 가능한 ${join(missing.map((s) => s.name))}이(가) 서비스 scope에 없어 서비스 전체 아님`,
+        )
+        // 중요 공지는 서비스 전체가 아니어도 Ride 탭에 함께 표시한다
         if (notice.important) {
           placements.push({ surface: 'ride', reason: '중요 이동 서비스 공지 → Ride 탭' })
         }
-        for (const s of matchedServices) {
-          placements.push({
-            surface: 'landing',
-            serviceId: s.id,
-            cityIds: servedCities
-              .filter((c) => c.serviceIds.includes(s.id) && inScope(serviceScope, s.id))
-              .map((c) => c.id),
-            reason: outgrown
-              ? `신규 서비스 추가로 서비스 전체 아님 → ${s.name} 랜딩`
-              : `${s.name} 지정 → ${s.name} 랜딩`,
-          })
-        }
+      }
+      // 서비스 랜딩: 서비스 전체 공지여도 해당 서비스 랜딩마다 함께 표시한다
+      for (const s of matchedServices) {
+        placements.push({
+          surface: 'landing',
+          serviceId: s.id,
+          cityIds: servedCities
+            .filter((c) => c.serviceIds.includes(s.id) && inScope(serviceScope, s.id))
+            .map((c) => c.id),
+          reason: serviceWide ? `서비스 전체 공지 → ${s.name} 랜딩에도 표시` : `${s.name} 지정 → ${s.name} 랜딩`,
+        })
       }
       placements.push({ surface: 'notification', reason: '유효한 이동 서비스 공지 → 알림 센터' })
     }

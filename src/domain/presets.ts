@@ -26,8 +26,11 @@ const countries = (...names: string[]) => pick(names.map(countryId))
 const cities = (...names: string[]) => pick(names.map(cityId))
 const services = (...names: string[]) => pick(names.map(serviceId))
 
-/** 기본 프리셋 공통 구성: 한국(인천, 서울), 태국(치앙마이) */
-function baseConfig(): ServiceConfig {
+/**
+ * 기본 서비스 구성: 한국(인천, 서울), 태국(치앙마이).
+ * 자동 저장이 없을 때(처음 실행, Netlify 등 정적 호스팅)의 시작 구성이기도 하다.
+ */
+export function baseConfig(): ServiceConfig {
   return configFromSpec([
     [
       '한국',
@@ -91,7 +94,7 @@ export function buildPresets(now: number): Preset[] {
       id: 'incheon-bus',
       label: '인천 호출버스 공지',
       description:
-        '인천만 선택한 한국 사용자입니다. 특정 서비스를 지정한 공지는 Ride 탭이 아니라 해당 서비스 랜딩에 보입니다. 여러 서비스를 지정한 공지는 랜딩마다 각각 보이지만 알림 센터에는 1건입니다. 열 3에서 서울도 선택해 보세요.',
+        '인천만 선택한 한국 사용자입니다. 인천에서 이용 가능한 서비스(공항 셔틀·호출버스)를 모두 지정한 공지는 Ride 탭과 각 서비스 랜딩에, 일부만 지정한 공지는 해당 서비스 랜딩에만 보입니다. 열 3에서 서울도 선택하면 이용 가능한 서비스가 늘어나 그 공지는 Ride 탭에서 빠집니다 (알림 센터에는 1건).',
       config,
       user: user({ countryId: countryId('한국'), cityIds: [cityId('인천')] }),
       notices: publish('incheon-bus', [
@@ -129,7 +132,7 @@ export function buildPresets(now: number): Preset[] {
       id: 'all-future',
       label: '서비스 전체 + 차후 추가 포함',
       description:
-        '[차후 포함] 공지와 [스냅샷] 공지는 "차후 추가 포함" 체크 여부만 다릅니다. 열 1에서 서비스를 추가하고 서울에 제공으로 체크하면 [스냅샷] 이동 서비스 공지는 더 이상 서비스 전체가 아니므로 Ride 탭에서 각 서비스 랜딩으로 옮겨집니다. 한국에 도시를 추가해 열 3에서 그 도시만 선택하거나, 국가를 추가해 앱 국가로 설정해 보세요.',
+        '[차후 포함] 공지와 [스냅샷] 공지는 "차후 추가 포함" 체크 여부만 다릅니다. 열 1에서 서비스를 추가하고 서울에 제공으로 체크하면 [스냅샷] 이동 서비스 공지는 더 이상 서비스 전체가 아니므로 Ride 탭에서 빠지고 각 서비스 랜딩에만 남습니다. 한국에 도시를 추가해 열 3에서 그 도시만 선택하거나, 국가를 추가해 앱 국가로 설정해 보세요.',
       config,
       user: user({ countryId: countryId('한국'), cityIds: [cityId('서울')] }),
       notices: publish('all-future', [

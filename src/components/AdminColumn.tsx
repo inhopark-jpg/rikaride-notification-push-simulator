@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 import { formatPeriod } from '../domain/format'
 import {
+  NOTICE_TITLE_MAX,
   PLACEHOLDER_BODY,
   TYPE_LABEL,
   buildNotice,
   cityOptions,
   draftFromNotice,
   emptyDraft,
-  isDraftServiceWide,
   normalizeDraft,
   placeholderTitle,
   publishError,
@@ -148,8 +148,12 @@ export function AdminColumn({
 
   const cityOpts = cityOptions(config, draft.countries)
   const serviceOpts = serviceOptions(config, draft.countries, draft.cities)
-  const serviceWide = isDraftServiceWide(draft.services, serviceOpts.length)
+  // 차후 추가까지 포함한 전체 선택이면 어떤 사용자에게든 서비스 전체 공지
+  const serviceWide = draft.services.all && draft.services.includeFuture
   const error = publishError(draft)
+  // 제목을 비우면 기본 제목이 쓰이므로 그 길이로 센다
+  const titleLength = [...(draft.title.trim() || placeholderTitle(draft.type))].length
+  const titleTooLong = titleLength > NOTICE_TITLE_MAX
   const hasCountries = draft.countries.all || draft.countries.ids.length > 0
   const hasCities = draft.cities.all || draft.cities.ids.length > 0
 
@@ -303,12 +307,18 @@ export function AdminColumn({
         <BlockDivider />
 
         <Group title="제목 · 본문 (선택)">
-          <input
-            className={inputClass}
-            value={draft.title}
-            placeholder={placeholderTitle(draft.type)}
-            onChange={(e) => update({ title: e.target.value })}
-          />
+          <div>
+            <input
+              className={`${inputClass} ${titleTooLong ? '!border-amber-500' : ''}`}
+              value={draft.title}
+              placeholder={placeholderTitle(draft.type)}
+              onChange={(e) => update({ title: e.target.value })}
+            />
+            <p className={`mt-1 text-right text-[13px] ${titleTooLong ? 'text-amber-700' : 'text-slate-400'}`}>
+              {titleTooLong && '앱에서는 2줄까지만 보여 잘릴 수 있어요 · '}
+              {titleLength}/{NOTICE_TITLE_MAX}자 권장
+            </p>
+          </div>
           <textarea
             className={`${inputClass} resize-none`}
             rows={2}
@@ -369,8 +379,8 @@ export function AdminColumn({
                 }`}
               >
                 {serviceWide
-                  ? `"서비스 전체" 공지 → Ride 탭에 노출${draft.services.all ? '' : ' (선택 가능한 서비스를 전부 골랐기 때문)'}`
-                  : '특정 서비스 지정 공지 → 각 서비스 랜딩에 노출'}
+                  ? '"서비스 전체" 공지 → Ride 탭과 각 서비스 랜딩에 노출'
+                  : '각 서비스 랜딩에 노출. 사용자가 선택한 도시에서 이용 가능한 서비스를 모두 포함하면 Ride 탭에도 노출'}
               </p>
             )}
           </>

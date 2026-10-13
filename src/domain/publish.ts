@@ -100,14 +100,6 @@ export function publishError(draft: NoticeDraft): string | null {
 }
 
 /**
- * 발행 폼 안내용: 지금 발행하면 "서비스 전체" 공지로 취급되는지.
- * 발행 후의 실제 판정은 visibility.ts의 isServiceWide가 그때그때 다시 계산한다.
- */
-export function isDraftServiceWide(services: ScopeDraft, optionCount: number): boolean {
-  return services.all || (optionCount > 0 && services.ids.length === optionCount)
-}
-
-/**
  * draft를 발행한다. "전체 선택"이면 그 시점의 옵션 전체를 스냅샷으로 저장하고,
  * "차후 포함" 플래그는 별도로 보존한다.
  */
@@ -172,3 +164,10 @@ export function scopeSummary(scope: Scope, nameOf: (id: Id) => string | undefine
   if (!scope.all) return names.join(', ') || '(삭제된 항목)'
   return `전체 (발행 시점 ${scope.ids.length}개)${scope.includeFuture ? ' + 차후 포함' : ''}`
 }
+
+/**
+ * 앱 공지 카드 제목 권장 최대 글자 수.
+ * 카드 제목은 2줄까지 보이고, 여러 장일 때 카드 폭(296px)에서 18px 한글이 한 줄에 약 11자 들어간다.
+ * 단어 단위 줄바꿈 여유를 빼고 2줄 ≈ 20자.
+ */
+export const NOTICE_TITLE_MAX = 20
