@@ -158,16 +158,16 @@ export function draftFromNotice(notice: Notice): NoticeDraft {
   }
 }
 
-/** 발행 목록에 보여줄 scope 요약. 예: "전체 (발행 시점 3개) + 차후 포함" */
-export function scopeSummary(scope: Scope, nameOf: (id: Id) => string | undefined): string {
-  const names = scope.ids.map(nameOf).filter((n): n is string => !!n)
-  if (!scope.all) return names.join(', ') || '(삭제된 항목)'
-  return `전체 (발행 시점 ${scope.ids.length}개)${scope.includeFuture ? ' + 차후 포함' : ''}`
-}
-
 /**
  * 앱 공지 카드 제목 권장 최대 글자 수.
  * 카드 제목은 2줄까지 보이고, 여러 장일 때 카드 폭(296px)에서 18px 한글이 한 줄에 약 11자 들어간다.
  * 단어 단위 줄바꿈 여유를 빼고 2줄 ≈ 20자.
  */
 export const NOTICE_TITLE_MAX = 20
+
+/** 발행 목록에 보여줄 scope 요약. 예: "전체 (발행 시점 3개) + 차후 포함" */
+export function scopeSummary(scope: Scope, nameOf: (id: Id) => string | undefined): string {
+  const names = scope.ids.map(nameOf).filter((n): n is string => !!n)
+  if (!scope.all) return names.join(', ') || '(삭제된 항목)'
+  return `전체 (발행 시점 ${scope.ids.length}개)${scope.includeFuture ? ' + 차후 포함' : ''}`
+}

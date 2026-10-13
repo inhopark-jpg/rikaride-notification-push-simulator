@@ -39,29 +39,28 @@ function ScopePicker({
   emptyText: string
 }) {
   const groups = [...new Set(options.map((o) => o.group))]
+  const optionIds = options.map((o) => o.id)
+  /** 차후 추가 포함이면 지금 있는 항목은 모두 대상 (개별 선택 잠금) */
+  const future = value.all && value.includeFuture
+  // 예전 "전체 선택(차후 미포함)" 공지를 수정할 때도 전부 체크된 목록으로 보여준다
+  const checkedIds = value.all ? optionIds : value.ids
+  const allChecked = optionIds.length > 0 && optionIds.every((id) => checkedIds.includes(id))
+  const setIds = (ids: Id[]) => onChange({ all: false, includeFuture: false, ids })
   const toggle = (id: Id) =>
-    onChange({
-      ...value,
-      ids: value.ids.includes(id) ? value.ids.filter((i) => i !== id) : [...value.ids, id],
-    })
+    setIds(checkedIds.includes(id) ? checkedIds.filter((i) => i !== id) : [...checkedIds, id])
 
   return (
     <div className="rounded-lg border border-slate-200 p-2">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-slate-100 pb-1.5">
+      <div className="flex items-center gap-2 border-b border-slate-100 pb-1.5">
         <span className="text-[14px] font-semibold text-slate-700">발행 대상 {unit}</span>
-        <Check
-          className="!text-[14px]"
-          label={`${unit} 전체 선택`}
-          checked={value.all}
-          onChange={(all) => onChange({ ...value, all, includeFuture: all && value.includeFuture })}
-        />
-        {value.all && (
-          <Check
-            className="rounded bg-amber-50 px-1.5 py-0.5 !text-[14px] !text-amber-900"
-            label={`차후 추가되는 ${unit} 포함`}
-            checked={value.includeFuture}
-            onChange={(includeFuture) => onChange({ ...value, includeFuture })}
-          />
+        {!future && options.length > 0 && (
+          <button
+            type="button"
+            className="ml-auto rounded px-1.5 py-0.5 text-[13px] font-medium text-blue-700 hover:bg-blue-50"
+            onClick={() => setIds(allChecked ? [] : optionIds)}
+          >
+            {allChecked ? '모두 해제' : '모두 선택'}
+          </button>
         )}
       </div>
       <div className="mt-1.5 space-y-1">
@@ -75,23 +74,36 @@ function ScopePicker({
                 <Check
                   key={o.id}
                   label={o.name}
-                  checked={value.all || value.ids.includes(o.id)}
-                  disabled={value.all}
+                  checked={future || checkedIds.includes(o.id)}
+                  disabled={future}
                   onChange={() => toggle(o.id)}
                 />
               ))}
           </div>
         ))}
       </div>
+      {/* 대상 범위를 실제로 넓히는 옵션: 모두 선택했을 때만 보인다. 켜면 발행 이후 새로 생기는 항목까지 포함 */}
+      {(future || allChecked) && (
+        <Check
+          className="mt-2 w-full rounded-md bg-amber-50 px-2 py-1.5 !text-[14px] !text-amber-900"
+          label={`앞으로 추가되는 ${unit}도 포함`}
+          checked={future}
+          onChange={(on) =>
+            onChange(on ? { all: true, includeFuture: true, ids: optionIds } : { all: false, includeFuture: false, ids: optionIds })
+          }
+        />
+      )}
     </div>
   )
 }
 
-/** 발행 scope를 배지로 나열. 전체 선택이면 "전체" (+ "차후 추가 포함") */
+/** 발행 scope를 배지로 나열 */
 function ScopeBadges({ scope, nameOf }: { scope: Scope; nameOf: (id: Id) => string | undefined }) {
-  const names = scope.all
-    ? ['전체', ...(scope.includeFuture ? ['차후 추가 포함'] : [])]
-    : scope.ids.map(nameOf).filter((n): n is string => !!n)
+  // 차후 포함이면 "전체", 아니면 발행 시점에 대상이 된 항목 이름
+  const names =
+    scope.all && scope.includeFuture
+      ? ['전체 (앞으로 추가 포함)']
+      : scope.ids.map(nameOf).filter((n): n is string => !!n)
   return (
     <div className="flex flex-wrap gap-1">
       {names.length === 0 && <span className="leading-6 text-slate-400">(삭제된 항목)</span>}
