@@ -572,6 +572,39 @@ describe('알림 센터', () => {
   })
 })
 
+describe('알림 센터에서 읽음 = 더 이상 표시 안 함', () => {
+  const important = () =>
+    publish({ type: 'app', important: true, title: '긴급', countries: co('한국') })
+
+  it('읽으면 Guide 카드·팝업·푸시에서 빠지고, 알림 센터에는 읽음으로 남는다', () => {
+    const n = important()
+    const before = evaluateAll([n], config, user())
+    expect([before.guide.length, before.popups.length, before.pushes.length]).toEqual([1, 1, 1])
+
+    const after = evaluateAll([n], config, user({ readNoticeIds: [n.id] }))
+    expect([after.guide.length, after.popups.length, after.pushes.length]).toEqual([0, 0, 0])
+    expect(after.notifications.map((e) => e.read)).toEqual([true])
+  })
+
+  it('"다시 보지 않기"는 팝업만 막고, 읽음 처리·푸시에는 영향 없음', () => {
+    const n = important()
+    const v = evaluateAll([n], config, user({ dismissedPopupIds: [n.id] }))
+    expect(v.popups).toHaveLength(0)
+    expect(v.pushes).toHaveLength(1)
+    expect(v.guide).toHaveLength(1)
+    expect(v.notifications.map((e) => e.read)).toEqual([false])
+  })
+
+  it('읽으면 서비스 랜딩·Ride 탭 카드에서도 빠진다', () => {
+    const n = publish({ type: 'mobility', countries: co('한국'), cities: ci('서울'), services: ALL })
+    const seoul = user({ cityIds: [cityId('서울')], readNoticeIds: [n.id] })
+    const v = evaluateAll([n], config, seoul)
+    expect(v.ride).toHaveLength(0)
+    expect(v.landings.flatMap((l) => l.cities.flatMap((c) => c.cards))).toHaveLength(0)
+    expect(v.notifications).toHaveLength(1)
+  })
+})
+
 describe('발행 폼의 계층 의존', () => {
   it('국가 선택에 따라 도시 옵션이, 도시 선택에 따라 서비스 옵션이 좁혀진다', () => {
     expect(cityOptions(config, co('일본')).map((c) => c.name)).toEqual(['오사카'])

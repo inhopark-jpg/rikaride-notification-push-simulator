@@ -5,6 +5,8 @@
  */
 import {
   AddAlt,
+  Camera,
+  Flash,
   ArrowLeft,
   Bookmark,
   ChevronDown,
@@ -27,6 +29,7 @@ import { layoutCtas } from '../domain/ctaLayout'
 import type { CtaSpan } from '../domain/ctaLayout'
 import type { City, Notice, Service } from '../domain/types'
 import type { Card, NotificationEntry } from '../domain/visibility'
+import appIcon from '../assets/RIKARIDE-AppIcon-Square-Light.png'
 import { NotificationListItem } from './NotificationListItem'
 
 type Icon = ComponentType<{ size?: number | string; className?: string }>
@@ -145,6 +148,8 @@ function NoticeCarousel({
   if (cards.length === 0) return null
   return (
     <div
+      // 공지 구성이 바뀌면(발행·초기화·닫기 복원) 새로 그려 첫 카드부터 보이게 한다
+      key={cards.map((c) => c.notice.id).join()}
       className={`flex snap-x snap-mandatory scroll-px-5 gap-2.5 overflow-x-auto px-5 [scrollbar-width:none] ${className}`}
     >
       {cards.map((card) => (
@@ -155,8 +160,6 @@ function NoticeCarousel({
           onClose={() => onClose(card.notice.id)}
         />
       ))}
-      {/* 스크롤 끝에서도 오른쪽 여백이 남도록 */}
-      {cards.length > 1 && <span className="w-2.5 shrink-0" />}
     </div>
   )
 }
@@ -717,5 +720,67 @@ export function PopupScreen({
         )}
       </div>
     </>
+  )
+}
+
+// ── 잠금화면 푸시 알림 ──────────────────────────────────────
+
+const WEEKDAYS = '일월화수목금토'
+
+/** 푸시 도착 시각을 잠금화면 표기로: 지금 / n분 전 / n시간 전 / n일 전 */
+function pushAge(sentAt: number, now: number): string {
+  const minutes = Math.floor((now - sentAt) / 60000)
+  if (minutes < 1) return '지금'
+  if (minutes < 60) return `${minutes}분 전`
+  if (minutes < 60 * 24) return `${Math.floor(minutes / 60)}시간 전`
+  return `${Math.floor(minutes / (60 * 24))}일 전`
+}
+
+function PushCard({ notice, now }: { notice: Notice; now: number }) {
+  return (
+    <article className="flex gap-3 rounded-[22px] bg-white/75 px-3.5 py-3 shadow-[0_2px_12px_rgba(15,23,42,0.08)] backdrop-blur">
+      <img src={appIcon} alt="" className="size-[38px] shrink-0 rounded-[9px]" />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[13px] font-semibold uppercase tracking-wide text-[#555b61]">RIKARIDE</span>
+          {/* 게시 시작 시각에 발송된 것으로 본다 */}
+          <span className="shrink-0 text-[13px] text-[#878d96]">{pushAge(notice.period.start, now)}</span>
+        </div>
+        <p className="mt-0.5 line-clamp-1 text-[15px] font-semibold leading-[22px] text-[#121619]">{notice.title}</p>
+        <p className="line-clamp-2 text-[14px] leading-[20px] text-[#3b4046]">{notice.body}</p>
+      </div>
+    </article>
+  )
+}
+
+/** 스마트폰 잠금화면. 중요 공지는 팝업과 함께 앱 푸시 알림으로도 온다. */
+export function LockScreen({ now, notices }: { now: number; notices: Notice[] }) {
+  const d = new Date(now)
+  const date = `${d.getMonth() + 1}월 ${d.getDate()}일 ${WEEKDAYS[d.getDay()]}요일`
+  const time = `${d.getHours() % 12 || 12}:${String(d.getMinutes()).padStart(2, '0')}`
+  return (
+    <div className="absolute inset-0 flex flex-col bg-[linear-gradient(165deg,#c7d4ea_0%,#dcd7ee_45%,#f1e5dc_100%)]">
+      <div className="shrink-0 pt-[76px] text-center text-[#1c2430]">
+        <p className="text-[18px] font-semibold opacity-80">{date}</p>
+        <p className="mt-1 text-[88px] font-bold leading-none tracking-tight opacity-90">{time}</p>
+      </div>
+      <div className="mt-8 min-h-0 flex-1 space-y-2 overflow-y-auto px-3 pb-4 [scrollbar-width:none]">
+        {notices.length === 0 ? (
+          <p className="mx-auto mt-24 w-fit rounded-full bg-white px-4 py-2 text-[14px] font-semibold text-[#121619]">
+            표출되는 푸시 알림 없음
+          </p>
+        ) : (
+          notices.map((n) => <PushCard key={n.id} notice={n} now={now} />)
+        )}
+      </div>
+      <div className="flex shrink-0 items-center justify-between px-12 pb-3">
+        {[Flash, Camera].map((IconCmp, i) => (
+          <span key={i} className="flex size-[50px] items-center justify-center rounded-full bg-black/15 text-white">
+            <IconCmp size={22} />
+          </span>
+        ))}
+      </div>
+      <div className="mx-auto mb-2 h-[5px] w-[134px] shrink-0 rounded-full bg-black/70" />
+    </div>
   )
 }

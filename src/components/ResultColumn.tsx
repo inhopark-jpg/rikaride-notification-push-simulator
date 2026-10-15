@@ -6,6 +6,7 @@ import type { AppView, Card, Evaluation } from '../domain/visibility'
 import {
   GuideScreen,
   LandingScreen,
+  LockScreen,
   NotificationScreen,
   PHONE_WIDTH,
   Phone,
@@ -23,12 +24,15 @@ function ScreenSlot({
   count,
   zoom,
   control,
+  note,
   children,
 }: {
   title: string
   count?: number
   zoom: number
   control?: ReactNode
+  /** 휴대폰 아래 설명 */
+  note?: string
   children: ReactNode
 }) {
   return (
@@ -47,6 +51,7 @@ function ScreenSlot({
         <span className="ml-auto">{control}</span>
       </header>
       {children}
+      {note && <p className="pt-1 text-[14px] leading-5 text-slate-500">{note}</p>}
     </section>
   )
 }
@@ -129,8 +134,15 @@ export function ResultColumn({
 
       {/* 1행: 팝업 · Guide · Ride · 알림 센터 */}
       <div className="-mx-2 flex items-start gap-5 overflow-x-auto px-2 pb-10">
+        <ScreenSlot title="푸시 알림" count={view.pushes.length} zoom={zoom}>
+          <Phone zoom={zoom}>
+            <LockScreen now={user.now} notices={view.pushes.map((e) => e.notice)} />
+          </Phone>
+        </ScreenSlot>
+
         <ScreenSlot
           title="중요 공지 팝업"
+          note="앱 실행 시뿐 아니라 사용 중에도 어느 화면에서든 표시됩니다."
           count={view.popups.length}
           zoom={zoom}
           control={

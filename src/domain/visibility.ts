@@ -34,6 +34,8 @@ export interface CheckItem {
 
 export interface PopupJudgement {
   show: boolean
+  /** 푸시 알림 대상: 팝업 조건 중 "다시 보지 않기"만 빼고 모두 충족 (푸시는 다시 보지 않기와 무관) */
+  push: boolean
   reason: string
   checklist: CheckItem[]
 }
@@ -72,6 +74,8 @@ export interface AppView {
   notifications: NotificationEntry[]
   /** 팝업으로 뜨는 중요 공지 */
   popups: Evaluation[]
+  /** 잠금화면 푸시 알림으로 보이는 중요 공지 */
+  pushes: Evaluation[]
   /** 중요 공지이지만 팝업 조건을 충족하지 못한 공지 */
   popupMisses: Evaluation[]
   /** Guide/Ride/랜딩/알림 센터 어디에도 보이지 않는 공지 */
@@ -273,7 +277,7 @@ function judgePopup(
     { label: '게시 기간 내', ok: periodOk },
     { label: '앱 국가가 국가 scope에 포함', ok: countryOk },
   ]
-  let reason = '중요 앱 공지 → 앱 실행 시 팝업'
+  let reason = '중요 앱 공지 → 앱 실행 시·사용 중 팝업'
 
   if (notice.type === 'mobility') {
     // 서비스 → 예약 도시 → 기간 순으로 좁혀 가며, 각 단계에 남은 예약을 체크리스트에 보여준다
@@ -305,12 +309,15 @@ function judgePopup(
     reason = '중요 공지 + 대상 도시·서비스 예약/이용 + 기간 겹침 → 팝업'
   }
 
+  // 알림 센터에서 읽은 공지는 "다시 보지 않기"를 누른 것과 같다 (역은 성립하지 않음)
+  checklist.push({ label: '알림 센터에서 읽지 않음', ok: !user.readNoticeIds.includes(notice.id) })
+  const push = checklist.every((c) => c.ok)
   checklist.push({
     label: '"다시 보지 않기" 미선택',
     ok: !user.dismissedPopupIds.includes(notice.id),
   })
 
-  return { show: checklist.every((c) => c.ok), reason, checklist }
+  return { show: checklist.every((c) => c.ok), push, reason, checklist }
 }
 
 // ── 화면별로 묶기 ──────────────────────────────────────────
@@ -320,8 +327,11 @@ export function evaluateAll(notices: Notice[], config: ServiceConfig, user: User
     .sort(compareNotices)
     .map((n) => evaluateNotice(n, config, user))
 
+  // 알림 센터에서 읽은 공지는 Guide/Ride/랜딩 카드에서 빠진다 (카드 x 닫기와 같음)
+  const unread = evaluations.filter((e) => !user.readNoticeIds.includes(e.notice.id))
+
   const cardsFor = (surface: Surface, serviceId?: Id): Card[] =>
-    evaluations.flatMap((e) =>
+    unread.flatMap((e) =>
       e.placements
         .filter((p) => p.surface === surface && p.serviceId === serviceId)
         .map((p) => ({ notice: e.notice, reason: p.reason, trace: e.trace })),
@@ -344,7 +354,7 @@ export function evaluateAll(notices: Notice[], config: ServiceConfig, user: User
         )
         .map((city) => ({
           city,
-          cards: evaluations.flatMap((e) =>
+          cards: unread.flatMap((e) =>
             e.placements
               .filter(
                 (p) =>
@@ -368,6 +378,7 @@ export function evaluateAll(notices: Notice[], config: ServiceConfig, user: User
         })),
     ),
     popups: evaluations.filter((e) => e.popup?.show),
+    pushes: evaluations.filter((e) => e.popup?.push),
     popupMisses: evaluations.filter((e) => e.popup && !e.popup.show),
     hidden: evaluations.filter((e) => e.placements.length === 0),
     evaluations,
