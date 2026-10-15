@@ -576,13 +576,13 @@ describe('알림 센터에서 읽음 = 더 이상 표시 안 함', () => {
   const important = () =>
     publish({ type: 'app', important: true, title: '긴급', countries: co('한국') })
 
-  it('읽으면 Guide 카드·팝업·푸시에서 빠지고, 알림 센터에는 읽음으로 남는다', () => {
+  it('읽으면 Guide 카드·팝업에서 빠지고, 알림 센터에는 읽음으로 남는다. 푸시(OS 알림)는 그대로', () => {
     const n = important()
     const before = evaluateAll([n], config, user())
     expect([before.guide.length, before.popups.length, before.pushes.length]).toEqual([1, 1, 1])
 
     const after = evaluateAll([n], config, user({ readNoticeIds: [n.id] }))
-    expect([after.guide.length, after.popups.length, after.pushes.length]).toEqual([0, 0, 0])
+    expect([after.guide.length, after.popups.length, after.pushes.length]).toEqual([0, 0, 1])
     expect(after.notifications.map((e) => e.read)).toEqual([true])
   })
 

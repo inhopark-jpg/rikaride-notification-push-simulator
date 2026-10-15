@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AdminColumn } from './components/AdminColumn'
-import { ConfigColumn } from './components/ConfigColumn'
+import { ConfigDialog } from './components/ConfigDialog'
 import { ResultColumn } from './components/ResultColumn'
 import { UserColumn } from './components/UserColumn'
 import { baseConfig, buildPresets } from './domain/presets'
@@ -49,7 +49,9 @@ export default function App() {
   const { config, notices, formKey } = scenario
 
   const user = useMemo(() => sanitizeUser(scenario.user, config), [scenario.user, config])
-  /** 열 2에서 작성 중인 공지 (발행 전 미리보기, 저장하지 않음) */
+  /** 서비스 설정 대화상자 */
+  const [configOpen, setConfigOpen] = useState(false)
+  /** 어드민 공지 발행에서 작성 중인 공지 (발행 전 미리보기, 저장하지 않음) */
   const [preview, setPreview] = useState<Notice | null>(null)
   const shownNotices = useMemo(
     () => (preview ? [...notices.filter((n) => n.id !== preview.id), preview] : notices),
@@ -111,15 +113,14 @@ export default function App() {
       </header>
 
       <main className="min-h-0 flex-1 overflow-x-auto">
-        <div className="grid h-full min-w-[1980px] grid-cols-[280px_640px_520px_minmax(420px,1fr)] gap-5 p-6">
-          <ConfigColumn config={config} onChange={(next) => patch({ config: next })} />
+        <div className="grid h-full min-w-[1680px] grid-cols-[640px_520px_minmax(420px,1fr)] gap-5 p-6">
           <AdminColumn
             key={formKey}
             config={config}
             now={user.now}
-            notices={notices}
             evaluations={published}
             onPreview={setPreview}
+            onOpenConfig={() => setConfigOpen(true)}
             onSave={(notice) =>
               patch({
                 notices: notices.some((n) => n.id === notice.id)
@@ -134,7 +135,7 @@ export default function App() {
             config={config}
             user={user}
             onChange={(next) => patch({ user: next })}
-            // 앱 설정·예약·현재 시각만 되돌린다 (읽음/닫기 상태는 열 4의 초기화)
+            // 앱 설정·예약·현재 시각만 되돌린다 (읽음/닫기 상태는 이용자 앱 표출 결과의 초기화)
             onReset={() =>
               patch({ user: { ...user, countryId: null, cityIds: [], reservations: [], now: currentMinute() } })
             }
@@ -147,6 +148,13 @@ export default function App() {
           />
         </div>
       </main>
+      {configOpen && (
+        <ConfigDialog
+          config={config}
+          onChange={(next) => patch({ config: next })}
+          onClose={() => setConfigOpen(false)}
+        />
+      )}
     </div>
   )
 }

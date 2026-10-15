@@ -114,7 +114,7 @@ export function ResultColumn({
   return (
     <Column
       touch
-      step={4}
+      step={3}
       title="이용자 앱 표출 결과"
       hint={`${country?.name ?? '국가 미설정'} · ${selectedCities.map((c) => c.name).join(', ') || '도시 미선택'} · 현재 ${formatShort(user.now)}`}
       // 앱 안에서 일어난 일(읽음, 카드 닫기, 팝업 닫기/다시 보지 않기, 지도 위치)을 되돌린다

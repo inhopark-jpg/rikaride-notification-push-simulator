@@ -86,7 +86,7 @@ function PickupDropoffMarker() {
 /** 휴대폰 배율. 마우스 이동량(화면 px)을 휴대폰 안 px로 바꿀 때 쓴다. */
 const ZoomContext = createContext(1)
 
-/** 휴대폰 틀. 터치 흉내(동그라미 커서, 끌어서 스크롤)는 열 4 본문 전체에 걸려 있다. */
+/** 휴대폰 틀. 터치 흉내(동그라미 커서, 끌어서 스크롤)는 이용자 앱 표출 결과 열 본문 전체에 걸려 있다. */
 export function Phone({ zoom, children }: { zoom: number; children: ReactNode }) {
   return (
     <div style={{ zoom }} className="shrink-0">

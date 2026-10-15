@@ -1,6 +1,6 @@
 export type Id = string
 
-// ── 열 1. 서비스 Configuration ──────────────────────────────
+// ── 서비스 설정 ───────────────────────────────────────
 export interface Country {
   id: Id
   name: string
@@ -25,7 +25,7 @@ export interface ServiceConfig {
   services: Service[]
 }
 
-// ── 열 2. 공지 ─────────────────────────────────────────────
+// ── 공지 ──────────────────────────────────────────────────
 export interface Period {
   start: number
   end: number
@@ -61,7 +61,7 @@ export interface Notice {
   services?: Scope
 }
 
-// ── 열 3. 가상 사용자 ───────────────────────────────────────
+// ── 가상 사용자 ────────────────────────────────────────────
 export interface Reservation {
   id: Id
   /** 예약/이용하는 서비스가 속한 도시 */

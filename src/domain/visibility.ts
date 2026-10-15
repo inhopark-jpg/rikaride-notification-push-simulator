@@ -34,7 +34,7 @@ export interface CheckItem {
 
 export interface PopupJudgement {
   show: boolean
-  /** 푸시 알림 대상: 팝업 조건 중 "다시 보지 않기"만 빼고 모두 충족 (푸시는 다시 보지 않기와 무관) */
+  /** 푸시 알림 대상: 팝업 조건 중 읽음·"다시 보지 않기"를 뺀 나머지를 충족 (OS 알림이라 앱 안 동작과 무관) */
   push: boolean
   reason: string
   checklist: CheckItem[]
@@ -309,9 +309,10 @@ function judgePopup(
     reason = '중요 공지 + 대상 도시·서비스 예약/이용 + 기간 겹침 → 팝업'
   }
 
+  // 푸시 알림은 OS(iOS) 알림이라 앱 안에서 읽거나 "다시 보지 않기"를 눌러도 사라지지 않는다
+  const push = checklist.every((c) => c.ok)
   // 알림 센터에서 읽은 공지는 "다시 보지 않기"를 누른 것과 같다 (역은 성립하지 않음)
   checklist.push({ label: '알림 센터에서 읽지 않음', ok: !user.readNoticeIds.includes(notice.id) })
-  const push = checklist.every((c) => c.ok)
   checklist.push({
     label: '"다시 보지 않기" 미선택',
     ok: !user.dismissedPopupIds.includes(notice.id),

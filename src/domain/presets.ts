@@ -1,5 +1,5 @@
 /**
- * 프리셋 시나리오. 버튼 하나로 열 1~3과 발행 공지를 한꺼번에 채운다.
+ * 프리셋 시나리오. ?preset=<id>로 서비스 설정·사용자 앱 설정·발행 공지를 한꺼번에 채운다.
  */
 import { cityId, configFromSpec, countryId, serviceId } from './config'
 import { dayRange } from './format'
@@ -68,7 +68,7 @@ export function buildPresets(now: number): Preset[] {
       id: 'app-korea',
       label: '한국 전체 앱 공지',
       description:
-        '도시를 선택하지 않은 한국 사용자입니다. 앱 공지는 도시와 무관하게 Guide 탭과 알림 센터에 보이고, 중요 공지는 팝업으로도 뜹니다. 열 3에서 앱 국가를 태국으로 바꾸거나 가상 현재 시각을 옮겨 보세요.',
+        '도시를 선택하지 않은 한국 사용자입니다. 앱 공지는 도시와 무관하게 Guide 탭과 알림 센터에 보이고, 중요 공지는 팝업으로도 뜹니다. 사용자 앱 설정에서 앱 국가를 태국으로 바꾸거나 가상 현재 시각을 옮겨 보세요.',
       config,
       user: user({ countryId: countryId('한국') }),
       notices: publish('app-korea', [
@@ -94,7 +94,7 @@ export function buildPresets(now: number): Preset[] {
       id: 'incheon-bus',
       label: '인천 호출버스 공지',
       description:
-        '인천만 선택한 한국 사용자입니다. 인천에서 이용 가능한 서비스(공항 셔틀·호출버스)를 모두 지정한 공지는 Ride 탭과 각 서비스 랜딩에, 일부만 지정한 공지는 해당 서비스 랜딩에만 보입니다. 열 3에서 서울도 선택하면 이용 가능한 서비스가 늘어나 그 공지는 Ride 탭에서 빠집니다 (알림 센터에는 1건).',
+        '인천만 선택한 한국 사용자입니다. 인천에서 이용 가능한 서비스(공항 셔틀·호출버스)를 모두 지정한 공지는 Ride 탭과 각 서비스 랜딩에, 일부만 지정한 공지는 해당 서비스 랜딩에만 보입니다. 사용자 앱 설정에서 서울도 선택하면 이용 가능한 서비스가 늘어나 그 공지는 Ride 탭에서 빠집니다 (알림 센터에는 1건).',
       config,
       user: user({ countryId: countryId('한국'), cityIds: [cityId('인천')] }),
       notices: publish('incheon-bus', [
@@ -132,7 +132,7 @@ export function buildPresets(now: number): Preset[] {
       id: 'all-future',
       label: '서비스 전체 + 차후 추가 포함',
       description:
-        '[차후 포함] 공지와 [스냅샷] 공지는 "차후 추가 포함" 체크 여부만 다릅니다. 열 1에서 서비스를 추가하고 서울에 제공으로 체크하면 [스냅샷] 이동 서비스 공지는 더 이상 서비스 전체가 아니므로 Ride 탭에서 빠지고 각 서비스 랜딩에만 남습니다. 한국에 도시를 추가해 열 3에서 그 도시만 선택하거나, 국가를 추가해 앱 국가로 설정해 보세요.',
+        '[차후 포함] 공지와 [스냅샷] 공지는 "차후 추가 포함" 체크 여부만 다릅니다. 서비스 설정에서 서비스를 추가하고 서울에 제공으로 체크하면 [스냅샷] 이동 서비스 공지는 더 이상 서비스 전체가 아니므로 Ride 탭에서 빠지고 각 서비스 랜딩에만 남습니다. 한국에 도시를 추가해 사용자 앱 설정에서 그 도시만 선택하거나, 국가를 추가해 앱 국가로 설정해 보세요.',
       config,
       user: user({ countryId: countryId('한국'), cityIds: [cityId('서울')] }),
       notices: publish('all-future', [
@@ -158,7 +158,7 @@ export function buildPresets(now: number): Preset[] {
       id: 'popup-overlap',
       label: '중요 공지 팝업과 예약 기간',
       description:
-        '중요 이동 서비스 공지 4건과 서울 예약 2건입니다. 팝업은 공지 대상 도시의 대상 서비스를 예약/이용 중이고 그 기간이 게시 기간과 겹칠 때만 뜹니다. 인천 호출버스 공지는 서비스는 같지만 예약 도시(서울)가 달라 뜨지 않습니다. 팝업 패널의 체크리스트를 확인하고, 열 3에서 예약의 도시·서비스·기간을 바꿔 보세요.',
+        '중요 이동 서비스 공지 4건과 서울 예약 2건입니다. 팝업은 공지 대상 도시의 대상 서비스를 예약/이용 중이고 그 기간이 게시 기간과 겹칠 때만 뜹니다. 인천 호출버스 공지는 서비스는 같지만 예약 도시(서울)가 달라 뜨지 않습니다. 팝업 패널의 체크리스트를 확인하고, 사용자 앱 설정에서 예약의 도시·서비스·기간을 바꿔 보세요.',
       config,
       user: user({
         countryId: countryId('한국'),
@@ -219,7 +219,7 @@ export function buildPresets(now: number): Preset[] {
       id: 'no-city',
       label: '도시 미선택 + 예약 있는 사용자',
       description:
-        '도시를 선택하지 않았지만 인천 공항 셔틀 예약이 있는 사용자입니다. 이동 서비스 공지는 Ride 탭·랜딩·알림 센터에 보이지 않지만, 예약한 서비스의 중요 공지는 팝업으로 뜹니다. 열 3에서 인천을 선택하면 나머지 화면에도 나타납니다.',
+        '도시를 선택하지 않았지만 인천 공항 셔틀 예약이 있는 사용자입니다. 이동 서비스 공지는 Ride 탭·랜딩·알림 센터에 보이지 않지만, 예약한 서비스의 중요 공지는 팝업으로 뜹니다. 사용자 앱 설정에서 인천을 선택하면 나머지 화면에도 나타납니다.',
       config,
       user: user({
         countryId: countryId('한국'),

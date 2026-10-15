@@ -43,8 +43,8 @@ export function UserColumn({
 
   return (
     <Column
-      step={3}
-      title="사용자 앱 Configuration"
+      step={2}
+      title="사용자 앱 설정"
       hint="가상 사용자의 앱 설정과 예약 상태"
       aside={
         <>

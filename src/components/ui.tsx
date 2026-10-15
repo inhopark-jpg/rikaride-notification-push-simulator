@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import { useTouchEmulation } from './touch'
 
@@ -15,6 +15,8 @@ export function Column({
   onReset,
   resetDisabled,
   aside,
+  toolbar,
+  actions,
   touch,
   children,
 }: {
@@ -26,6 +28,10 @@ export function Column({
   resetDisabled?: boolean
   /** 있으면 본문을 좌우 두 열로 나누고 오른쪽 열에 놓는다. 각 열은 따로 스크롤된다. */
   aside?: ReactNode
+  /** 헤더의 초기화 버튼 옆에 놓는 버튼 */
+  actions?: ReactNode
+  /** 헤더 바로 아래, 본문 전체 폭에 걸친 영역 (두 열로 나뉘어도 공통) */
+  toolbar?: ReactNode
   /** 본문(헤더 제외)에서 마우스를 손가락처럼: 동그라미 커서, 누른 채 끌어 스크롤 */
   touch?: boolean
   children: ReactNode
@@ -42,14 +48,18 @@ export function Column({
           <h2 className="min-w-0 flex-1 text-[16px] font-semibold text-white">{title}</h2>
         </div>
         <p className="pl-8 text-[13px] leading-5 text-slate-400">{hint}</p>
-        {onReset && (
-          <div className="mt-2 pl-8">
-            <Button variant="inverse" onClick={onReset} disabled={resetDisabled}>
-              초기화
-            </Button>
+        {(onReset || actions) && (
+          <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-8">
+            {onReset && (
+              <Button variant="inverse" onClick={onReset} disabled={resetDisabled}>
+                초기화
+              </Button>
+            )}
+            {actions}
           </div>
         )}
       </header>
+      {toolbar && <div className="shrink-0 border-b border-slate-200 bg-white px-3 py-2.5">{toolbar}</div>}
       {aside ? (
         <div className="grid min-h-0 flex-1 grid-cols-2 divide-x divide-slate-200">
           <div className="min-h-0 space-y-4 overflow-y-auto p-3">{children}</div>
@@ -64,6 +74,68 @@ export function Column({
         </div>
       )}
     </section>
+  )
+}
+
+/** 가운데 뜨는 대화상자. 바깥을 누르거나 Esc로 닫는다. 헤더 모양은 Column과 같다. */
+export function Modal({
+  title,
+  hint,
+  onClose,
+  onReset,
+  resetDisabled,
+  children,
+}: {
+  title: string
+  hint: string
+  onClose: () => void
+  onReset?: () => void
+  resetDisabled?: boolean
+  children: ReactNode
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-6"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="flex max-h-full w-full max-w-[480px] flex-col overflow-hidden rounded-xl bg-white shadow-2xl"
+      >
+        <header className="flex shrink-0 items-start gap-2 bg-slate-900 px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-[17px] font-semibold text-white">{title}</h2>
+            <p className="text-[13px] leading-5 text-slate-400">{hint}</p>
+            {onReset && (
+              <Button variant="inverse" className="mt-2" onClick={onReset} disabled={resetDisabled}>
+                초기화
+              </Button>
+            )}
+          </div>
+          <button
+            type="button"
+            aria-label="닫기"
+            className="flex size-8 shrink-0 items-center justify-center rounded-full text-[20px] leading-none text-slate-300 hover:bg-white/10 hover:text-white"
+            onClick={onClose}
+          >
+            ×
+          </button>
+        </header>
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">{children}</div>
+        <footer className="shrink-0 border-t border-slate-200 p-3">
+          <Button variant="primary" size="lg" className="w-full" onClick={onClose}>
+            완료
+          </Button>
+        </footer>
+      </section>
+    </div>
   )
 }
 

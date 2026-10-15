@@ -13,7 +13,7 @@ import {
   toggleCityService,
 } from '../domain/config'
 import type { ServiceConfig } from '../domain/types'
-import { BlockDivider, Button, Check, Column, Empty, Group, inputClass } from './ui'
+import { BlockDivider, Button, Check, Empty, Group, Modal, inputClass } from './ui'
 
 /**
  * 새 항목 추가. 버튼을 누르면 이름 입력칸이 열리고, 무작위 이름이 placeholder로 제안된다.
@@ -74,20 +74,23 @@ function AddRow({
   )
 }
 
-export function ConfigColumn({
+/** 서비스 설정 대화상자: 어드민 공지 발행 헤더의 "서비스 설정 변경"으로 연다 */
+export function ConfigDialog({
   config,
   onChange,
+  onClose,
 }: {
   config: ServiceConfig
   onChange: (config: ServiceConfig) => void
+  onClose: () => void
 }) {
   const isEmpty = config.countries.length === 0 && config.services.length === 0
 
   return (
-    <Column
-      step={1}
-      title="서비스 Configuration"
-      hint="국가 → 도시 → 제공 서비스 매핑"
+    <Modal
+      title="서비스 설정"
+      hint="서비스 운영 국가 → 도시 → 제공 서비스. 바꾸면 화면에 바로 반영됩니다."
+      onClose={onClose}
       onReset={() => onChange(EMPTY_CONFIG)}
       resetDisabled={isEmpty}
     >
@@ -120,7 +123,7 @@ export function ConfigColumn({
 
       <BlockDivider />
 
-      <Group title={`국가 (${config.countries.length})`}>
+      <Group title={`서비스 운영 국가 (${config.countries.length})`}>
         {config.countries.length === 0 && (
           <Empty>비어 있습니다. 아래에서 국가를 추가하세요.</Empty>
         )}
@@ -188,6 +191,6 @@ export function ConfigColumn({
           onAdd={(name) => onChange(addCountry(config, name))}
         />
       </Group>
-    </Column>
+    </Modal>
   )
 }

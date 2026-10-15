@@ -16,6 +16,7 @@ import {
 import type { NoticeDraft, ScopeDraft } from '../domain/publish'
 import type { Id, Notice, NoticeType, Scope, ServiceConfig } from '../domain/types'
 
+import { inScope } from '../domain/visibility'
 import type { Evaluation } from '../domain/visibility'
 import { BlockDivider, Button, Check, Chip, Column, DateTimeInput, Empty, Group, Switch, inputClass } from './ui'
 
@@ -125,23 +126,24 @@ function periodStatus(notice: Notice, now: number) {
 export function AdminColumn({
   config,
   now,
-  notices,
   evaluations,
   onSave,
   onDelete,
   onReset,
   onPreview,
+  onOpenConfig,
 }: {
   config: ServiceConfig
   now: number
-  notices: Notice[]
   evaluations: Evaluation[]
   onSave: (notice: Notice) => void
   onDelete: (id: Id) => void
   /** 발행된 공지를 모두 지운다 */
   onReset: () => void
-  /** 작성 중인 공지. 발행 전에도 열 4에 바로 반영된다 */
+  /** 작성 중인 공지. 발행 전에도 이용자 앱 표출 결과에 바로 반영된다 */
   onPreview: (notice: Notice) => void
+  /** 서비스 설정 대화상자 열기 */
+  onOpenConfig: () => void
 }) {
   const [rawDraft, setRawDraft] = useState<NoticeDraft>(() => emptyDraft(now))
   const [editing, setEditing] = useState<Notice | null>(null)
@@ -149,9 +151,15 @@ export function AdminColumn({
   const [draftId, setDraftId] = useState(() => crypto.randomUUID())
   /** 조건이 덜 채워진 채로 발행을 눌렀는지 */
   const [tried, setTried] = useState(false)
+  /** 국가 설정: 공지를 발행할 국가. 공지 1건은 국가 1개에만 발행한다 (여러 국가는 국가를 바꿔 따로 발행). */
+  const [serverId, setServerId] = useState<Id | null>(null)
+  const server = config.countries.find((c) => c.id === serverId) ?? config.countries[0]
 
-  // 상위 scope나 구성이 바뀌면 하위 선택이 자연스럽게 정리되도록 매 렌더마다 정규화한다
-  const draft = normalizeDraft(rawDraft, config)
+  // 국가 scope는 국가 설정 하나로 고정. 상위 scope나 구성이 바뀌면 하위 선택이 정리되도록 매 렌더마다 정규화한다
+  const draft = normalizeDraft(
+    { ...rawDraft, countries: { all: false, includeFuture: false, ids: server ? [server.id] : [] } },
+    config,
+  )
   const update = (patch: Partial<NoticeDraft>) => setRawDraft({ ...draft, ...patch })
 
   const countryName = (id: Id) => config.countries.find((c) => c.id === id)?.name
@@ -162,11 +170,13 @@ export function AdminColumn({
   const serviceOpts = serviceOptions(config, draft.countries, draft.cities)
   // 차후 추가까지 포함한 전체 선택이면 어떤 사용자에게든 서비스 전체 공지
   const serviceWide = draft.services.all && draft.services.includeFuture
-  const error = publishError(draft)
+  const error = server ? publishError(draft) : '"서비스 설정 변경"에서 국가를 먼저 추가하세요'
+  /** 설정한 국가에 발행된 공지만 목록에 보여준다 */
+  const serverEvaluations = server ? evaluations.filter((e) => inScope(e.notice.countries, server.id)) : []
   // 제목을 비우면 기본 제목이 쓰이므로 그 길이로 센다
   const titleLength = [...(draft.title.trim() || placeholderTitle(draft.type))].length
   const titleTooLong = titleLength > NOTICE_TITLE_MAX
-  const hasCountries = draft.countries.all || draft.countries.ids.length > 0
+  const hasCountries = !!server
   const hasCities = draft.cities.all || draft.cities.ids.length > 0
 
   const preview = buildNotice(draft, config, {
@@ -205,18 +215,45 @@ export function AdminColumn({
 
   return (
     <Column
-      step={2}
+      step={1}
       title="어드민 공지 발행"
-      hint="발행 대상 설정을 바꿔 여러 공지를 발행해 비교"
+      hint="국가마다 공지를 발행하고 발행 대상 설정을 바꿔 비교"
       onReset={() => {
         cancelEdit()
         onReset()
       }}
+      actions={
+        <Button variant="inverse" onClick={onOpenConfig}>
+          서비스 설정 변경
+        </Button>
+      }
+      toolbar={
+        <label className="flex items-center gap-3">
+          <span className="shrink-0 text-[17px] font-bold text-slate-900">어드민 국가 설정</span>
+          <select
+            className="h-11 w-full max-w-[280px] rounded-lg border-2 border-slate-300 bg-white px-3 text-[17px] font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100 disabled:text-slate-400"
+            value={server?.id ?? ''}
+            disabled={!server}
+            onChange={(e) => {
+              // 다른 국가로 바꾸면 수정 중이던 공지는 취소한다
+              if (editing) cancelEdit()
+              setServerId(e.target.value)
+            }}
+          >
+            {!server && <option value="">국가 없음</option>}
+            {config.countries.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      }
       aside={
         <>
-          <Group title={`발행된 공지 (${notices.length})`}>
-            {notices.length === 0 && <Empty>아직 발행된 공지가 없습니다.</Empty>}
-            {evaluations.map((evaluation) => {
+          <Group title={`${server ? `${server.name}에 ` : ''}발행된 공지 (${serverEvaluations.length})`}>
+            {serverEvaluations.length === 0 && <Empty>아직 발행된 공지가 없습니다.</Empty>}
+            {serverEvaluations.map((evaluation) => {
               const { notice } = evaluation
               return (
                 <article
@@ -358,22 +395,14 @@ export function AdminColumn({
 
         <BlockDivider />
 
-        <ScopePicker
-          unit="국가"
-          options={config.countries}
-          value={draft.countries}
-          onChange={(countries) => update({ countries })}
-          emptyText="열 1에서 국가를 먼저 설정하세요."
-        />
-
         {draft.type === 'mobility' && hasCountries && (
           <>
             <ScopePicker
               unit="도시"
-              options={cityOpts.map((c) => ({ ...c, group: countryName(c.countryId) }))}
+              options={cityOpts}
               value={draft.cities}
               onChange={(cities) => update({ cities })}
-              emptyText="선택한 국가에 도시가 없습니다."
+              emptyText={`${server?.name ?? ''}에 도시가 없습니다.`}
             />
             {hasCities && (
               <ScopePicker
