@@ -167,9 +167,10 @@ export function UserColumn({
         <select
           className={inputClass}
           value={user.countryId ?? ''}
-          onChange={(e) => onChange({ ...user, countryId: e.target.value || null, cityIds: [] })}
+          disabled={config.countries.length === 0}
+          onChange={(e) => onChange({ ...user, countryId: e.target.value, cityIds: [] })}
         >
-          <option value="">미설정</option>
+          {config.countries.length === 0 && <option value="">서비스 운영 국가 없음</option>}
           {config.countries.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -183,7 +184,7 @@ export function UserColumn({
       <Group title={`선택한 도시 (${user.cityIds.length})`}>
         {cities.length === 0 ? (
           <Empty>
-            {user.countryId ? '이 국가에 도시가 없습니다.' : '앱 국가를 먼저 설정하세요.'}
+            {user.countryId ? '이 국가에 도시가 없습니다.' : '서비스 설정 변경에서 국가를 먼저 추가하세요.'}
           </Empty>
         ) : (
           <div className="space-y-1">

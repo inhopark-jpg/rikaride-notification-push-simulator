@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { formatPeriod } from '../domain/format'
 import {
   NOTICE_TITLE_MAX,
@@ -18,7 +18,7 @@ import type { Id, Notice, NoticeType, Scope, ServiceConfig } from '../domain/typ
 
 import { inScope } from '../domain/visibility'
 import type { Evaluation } from '../domain/visibility'
-import { BlockDivider, Button, Check, Chip, Column, DateTimeInput, Empty, Group, Switch, inputClass } from './ui'
+import { Button, Check, Chip, Column, DateTimeInput, Empty, Group, Switch, inputClass } from './ui'
 
 interface ScopeOption {
   id: Id
@@ -140,8 +140,8 @@ export function AdminColumn({
   onDelete: (id: Id) => void
   /** 발행된 공지를 모두 지운다 */
   onReset: () => void
-  /** 작성 중인 공지. 발행 전에도 이용자 앱 표출 결과에 바로 반영된다 */
-  onPreview: (notice: Notice) => void
+  /** 작성 중인 공지. 발행 전에도 이용자 앱 표출 결과에 바로 반영된다 (양식을 닫으면 null) */
+  onPreview: (notice: Notice | null) => void
   /** 서비스 설정 대화상자 열기 */
   onOpenConfig: () => void
 }) {
@@ -151,6 +151,9 @@ export function AdminColumn({
   const [draftId, setDraftId] = useState(() => crypto.randomUUID())
   /** 조건이 덜 채워진 채로 발행을 눌렀는지 */
   const [tried, setTried] = useState(false)
+  /** 공지 발행 양식이 열려 있는지 ("+ 공지 발행" 또는 "수정"으로 연다) */
+  const [formOpen, setFormOpen] = useState(false)
+  const formRef = useRef<HTMLDivElement>(null)
   /** 국가 설정: 공지를 발행할 국가. 공지 1건은 국가 1개에만 발행한다 (여러 국가는 국가를 바꿔 따로 발행). */
   const [serverId, setServerId] = useState<Id | null>(null)
   const server = config.countries.find((c) => c.id === serverId) ?? config.countries[0]
@@ -183,11 +186,17 @@ export function AdminColumn({
     id: editing?.id ?? draftId,
     publishedAt: editing?.publishedAt ?? now,
   })
-  const previewKey = JSON.stringify(preview)
+  // 양식이 열려 있을 때만 작성 중인 공지를 미리 보여준다
+  const previewKey = formOpen ? JSON.stringify(preview) : ''
   useEffect(() => {
-    onPreview(JSON.parse(previewKey) as Notice)
+    onPreview(previewKey ? (JSON.parse(previewKey) as Notice) : null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [previewKey])
+
+  // 양식을 열면(또는 다른 공지를 수정하면) 목록 아래의 양식이 보이도록 스크롤
+  useEffect(() => {
+    if (formOpen) formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [formOpen, editing])
 
   const submit = () => {
     if (error) {
@@ -195,22 +204,28 @@ export function AdminColumn({
       return
     }
     onSave({ ...preview, publishedAt: editing?.publishedAt ?? Date.now() })
+    closeForm()
+  }
+
+  const openNew = () => {
     setEditing(null)
-    setDraftId(crypto.randomUUID())
     setTried(false)
-    setRawDraft({ ...emptyDraft(now, draft.type), start: draft.start, end: draft.end })
+    setDraftId(crypto.randomUUID())
+    setRawDraft(emptyDraft(now))
+    setFormOpen(true)
   }
 
   const startEdit = (notice: Notice) => {
     setTried(false)
     setEditing(notice)
     setRawDraft(draftFromNotice(notice))
+    setFormOpen(true)
   }
 
-  const cancelEdit = () => {
+  const closeForm = () => {
     setTried(false)
     setEditing(null)
-    setRawDraft(emptyDraft(now))
+    setFormOpen(false)
   }
 
   return (
@@ -219,7 +234,7 @@ export function AdminColumn({
       title="어드민 공지 발행"
       hint="국가마다 공지를 발행하고 발행 대상 설정을 바꿔 비교"
       onReset={() => {
-        cancelEdit()
+        closeForm()
         onReset()
       }}
       actions={
@@ -236,7 +251,7 @@ export function AdminColumn({
             disabled={!server}
             onChange={(e) => {
               // 다른 국가로 바꾸면 수정 중이던 공지는 취소한다
-              if (editing) cancelEdit()
+              if (editing) closeForm()
               setServerId(e.target.value)
             }}
           >
@@ -249,197 +264,201 @@ export function AdminColumn({
           </select>
         </label>
       }
-      aside={
-        <>
-          <Group title={`${server ? `${server.name}에 ` : ''}발행된 공지 (${serverEvaluations.length})`}>
-            {serverEvaluations.length === 0 && <Empty>아직 발행된 공지가 없습니다.</Empty>}
-            {serverEvaluations.map((evaluation) => {
-              const { notice } = evaluation
-              return (
-                <article
-                  key={notice.id}
-                  className={`space-y-1 rounded-lg border p-2 ${
-                    editing?.id === notice.id ? 'border-blue-400 bg-blue-50' : 'border-slate-200 bg-white'
-                  }`}
-                >
-                  <div className="flex items-start gap-2">
-                    <p className="min-w-0 flex-1 text-[15px] font-medium leading-6 text-slate-900">{notice.title}</p>
-                    <span className="shrink-0">{periodStatus(notice, now)}</span>
-                  </div>
-                  <dl className="grid grid-cols-[auto_1fr] items-start gap-x-2 gap-y-1 text-[13px] leading-5 text-slate-600">
-                    <dt className="leading-6 text-slate-400">유형</dt>
-                    <dd className="flex flex-wrap gap-1">
-                      <Chip tone={notice.type === 'app' ? 'blue' : 'teal'}>{TYPE_LABEL[notice.type]}</Chip>
-                      {notice.important && <Chip tone="red">중요</Chip>}
-                    </dd>
-                    <dt className="text-slate-400">기간</dt>
-                    <dd>{formatPeriod(notice.period)}</dd>
-                    <dt className="leading-6 text-slate-400">국가</dt>
-                    <dd>
-                      <ScopeBadges scope={notice.countries} nameOf={countryName} />
-                    </dd>
-                    {notice.cities && (
-                      <>
-                        <dt className="leading-6 text-slate-400">도시</dt>
-                        <dd>
-                          <ScopeBadges scope={notice.cities} nameOf={cityName} />
-                        </dd>
-                      </>
-                    )}
-                    {notice.services && (
-                      <>
-                        <dt className="leading-6 text-slate-400">서비스</dt>
-                        <dd>
-                          <ScopeBadges scope={notice.services} nameOf={serviceName} />
-                        </dd>
-                      </>
-                    )}
-                  </dl>
-                  <div className="flex justify-end gap-1">
-                    <Button variant="ghost" onClick={() => startEdit(notice)}>
-                      수정
-                    </Button>
-                    <Button
-                      variant="danger"
-                      onClick={() => {
-                        if (editing?.id === notice.id) cancelEdit()
-                        onDelete(notice.id)
-                      }}
-                    >
-                      삭제
-                    </Button>
-                  </div>
-                </article>
-              )
-            })}
-          </Group>
-        </>
-      }
     >
-      <div
-        className="space-y-3"
-      >
-        {editing && (
-          <p className="rounded-lg bg-blue-50 px-3 py-2 text-[14px] font-medium text-blue-800 ring-1 ring-blue-200">
-            "{editing.title}" 수정 중. 저장하면 scope 스냅샷이 현재 구성 기준으로 다시 만들어집니다.
-          </p>
-        )}
+      <Group title={`${server ? `${server.name}에 ` : ''}발행된 공지 (${serverEvaluations.length})`}>
+        {serverEvaluations.length === 0 && <Empty>아직 발행된 공지가 없습니다.</Empty>}
+        {serverEvaluations.map((evaluation) => {
+          const { notice } = evaluation
+          return (
+            <article
+              key={notice.id}
+              className={`space-y-1 rounded-lg border p-2 ${
+                editing?.id === notice.id ? 'border-blue-400 bg-blue-50' : 'border-slate-200 bg-white'
+              }`}
+            >
+              <div className="flex items-start gap-2">
+                <p className="min-w-0 flex-1 text-[15px] font-medium leading-6 text-slate-900">{notice.title}</p>
+                <span className="shrink-0">{periodStatus(notice, now)}</span>
+              </div>
+              <dl className="grid grid-cols-[auto_1fr] items-start gap-x-2 gap-y-1 text-[13px] leading-5 text-slate-600">
+                <dt className="leading-6 text-slate-400">유형</dt>
+                <dd className="flex flex-wrap gap-1">
+                  <Chip tone={notice.type === 'app' ? 'blue' : 'teal'}>{TYPE_LABEL[notice.type]}</Chip>
+                  {notice.important && <Chip tone="red">중요</Chip>}
+                </dd>
+                <dt className="text-slate-400">기간</dt>
+                <dd>{formatPeriod(notice.period)}</dd>
+                <dt className="leading-6 text-slate-400">국가</dt>
+                <dd>
+                  <ScopeBadges scope={notice.countries} nameOf={countryName} />
+                </dd>
+                {notice.cities && (
+                  <>
+                    <dt className="leading-6 text-slate-400">도시</dt>
+                    <dd>
+                      <ScopeBadges scope={notice.cities} nameOf={cityName} />
+                    </dd>
+                  </>
+                )}
+                {notice.services && (
+                  <>
+                    <dt className="leading-6 text-slate-400">서비스</dt>
+                    <dd>
+                      <ScopeBadges scope={notice.services} nameOf={serviceName} />
+                    </dd>
+                  </>
+                )}
+              </dl>
+              <div className="flex justify-end gap-1">
+                <Button variant="ghost" onClick={() => startEdit(notice)}>
+                  수정
+                </Button>
+                <Button
+                  variant="danger"
+                  onClick={() => {
+                    if (editing?.id === notice.id) closeForm()
+                    onDelete(notice.id)
+                  }}
+                >
+                  삭제
+                </Button>
+              </div>
+            </article>
+          )
+        })}
+      </Group>
 
-        <Group title="공지 유형">
-          <div className="grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1">
-            {(['app', 'mobility'] as NoticeType[]).map((type) => (
-              <button
-                key={type}
-                type="button"
-                className={`rounded-md py-1.5 text-[15px] font-medium ${
-                  draft.type === type
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-                onClick={() => update({ type })}
-              >
-                {TYPE_LABEL[type]}
-              </button>
-            ))}
-          </div>
-        </Group>
-
-        <Group title="게시 기간">
-          <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 gap-y-1">
-            <span className="text-[14px] text-slate-500">시작</span>
-            <DateTimeInput value={draft.start} onChange={(start) => update({ start })} />
-            <span className="text-[14px] text-slate-500">종료</span>
-            <DateTimeInput value={draft.end} onChange={(end) => update({ end })} />
-          </div>
-        </Group>
-
-        <BlockDivider />
-
-        <Group title="제목 · 본문 (선택)">
-          <div>
-            <input
-              className={`${inputClass} ${titleTooLong ? '!border-amber-500' : ''}`}
-              value={draft.title}
-              placeholder={placeholderTitle(draft.type)}
-              onChange={(e) => update({ title: e.target.value })}
-            />
-            <p className={`mt-1 text-right text-[13px] ${titleTooLong ? 'text-amber-700' : 'text-slate-400'}`}>
-              {titleTooLong && '앱에서는 2줄까지만 보여 잘릴 수 있어요 · '}
-              {titleLength}/{NOTICE_TITLE_MAX}자 권장
-            </p>
-          </div>
-          <textarea
-            className={`${inputClass} resize-none`}
-            rows={2}
-            value={draft.body}
-            placeholder={PLACEHOLDER_BODY}
-            onChange={(e) => update({ body: e.target.value })}
-          />
-        </Group>
-
-        <div className="rounded-lg border border-slate-200 p-2">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[15px] font-semibold text-slate-800">중요 공지</span>
-            <Switch
-              label="중요 공지"
-              checked={draft.important}
-              onChange={(important) => update({ important })}
-            />
-          </div>
-          <p className="mt-1 text-[13px] leading-5 text-slate-500">
-            {draft.type === 'app'
-              ? '대상 국가 사용자에게 앱 실행 시 또는 앱 사용 중 팝업과 푸시 알림으로 표시됩니다.'
-              : '대상 서비스를 예약했거나 이용 중이고, 그 기간이 게시 기간과 겹치는 사용자에게 앱 실행 시 또는 앱 사용 중 팝업과 푸시 알림으로 표시됩니다.'}
-          </p>
-        </div>
-
-        <BlockDivider />
-
-        {draft.type === 'mobility' && hasCountries && (
-          <>
-            <ScopePicker
-              unit="도시"
-              options={cityOpts}
-              value={draft.cities}
-              onChange={(cities) => update({ cities })}
-              emptyText={`${server?.name ?? ''}에 도시가 없습니다.`}
-            />
-            {hasCities && (
-              <ScopePicker
-                unit="서비스"
-                options={serviceOpts}
-                value={draft.services}
-                onChange={(services) => update({ services })}
-                emptyText="선택한 도시에서 제공되는 서비스가 없습니다."
-              />
-            )}
-            {hasCities && (draft.services.all || draft.services.ids.length > 0) && (
-              <p
-                className={`rounded-md px-2 py-1.5 text-[14px] leading-5 ${
-                  serviceWide ? 'bg-teal-50 text-teal-800' : 'bg-blue-50 text-blue-800'
-                }`}
-              >
-                {serviceWide
-                  ? '"서비스 전체" 공지 → Ride 탭과 각 서비스 랜딩에 노출'
-                  : '각 서비스 랜딩에 노출. 사용자가 선택한 도시에서 이용 가능한 서비스를 모두 포함하면 Ride 탭에도 노출'}
+      {formOpen ? (
+        <div ref={formRef} className="space-y-3 rounded-xl border-2 border-blue-200 bg-white p-3">
+            <header className="-mx-3 -mt-3 flex items-center gap-2 rounded-t-[10px] bg-blue-50 px-3 py-2.5">
+              <h3 className="flex-1 text-[16px] font-bold text-blue-900">{editing ? '공지 수정' : '새 공지 발행'}</h3>
+              <Button variant="ghost" onClick={closeForm}>
+                닫기
+              </Button>
+            </header>
+            {editing && (
+              <p className="text-[13px] leading-5 text-slate-500">
+                "{editing.title}" 수정 중. 저장하면 scope 스냅샷이 현재 구성 기준으로 다시 만들어집니다.
               </p>
             )}
-          </>
-        )}
 
-        <div className="flex items-center gap-2">
-          <Button variant="primary" size="lg" className="flex-1" onClick={submit}>
-            {editing ? '수정 저장' : '발행'}
-          </Button>
-          {editing && (
-            <Button size="lg" onClick={cancelEdit}>
-              취소
-            </Button>
-          )}
+            <Group title="공지 유형">
+              <div className="grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1">
+                {(['app', 'mobility'] as NoticeType[]).map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    className={`rounded-md py-1.5 text-[15px] font-medium ${
+                      draft.type === type
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                    onClick={() => update({ type })}
+                  >
+                    {TYPE_LABEL[type]}
+                  </button>
+                ))}
+              </div>
+            </Group>
+
+            <Group title="게시 기간">
+              <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 gap-y-1">
+                <span className="text-[14px] text-slate-500">시작</span>
+                <DateTimeInput value={draft.start} onChange={(start) => update({ start })} />
+                <span className="text-[14px] text-slate-500">종료</span>
+                <DateTimeInput value={draft.end} onChange={(end) => update({ end })} />
+              </div>
+            </Group>
+
+            <div role="separator" className="-mx-3 h-px bg-slate-200" />
+
+            <Group title="제목 · 본문 (선택)">
+              <div>
+                <input
+                  className={`${inputClass} ${titleTooLong ? '!border-amber-500' : ''}`}
+                  value={draft.title}
+                  placeholder={placeholderTitle(draft.type)}
+                  onChange={(e) => update({ title: e.target.value })}
+                />
+                <p className={`mt-1 text-right text-[13px] ${titleTooLong ? 'text-amber-700' : 'text-slate-400'}`}>
+                  {titleTooLong && '앱에서는 2줄까지만 보여 잘릴 수 있어요 · '}
+                  {titleLength}/{NOTICE_TITLE_MAX}자 권장
+                </p>
+              </div>
+              <textarea
+                className={`${inputClass} resize-none`}
+                rows={2}
+                value={draft.body}
+                placeholder={PLACEHOLDER_BODY}
+                onChange={(e) => update({ body: e.target.value })}
+              />
+            </Group>
+
+            <div className="rounded-lg border border-slate-200 p-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[15px] font-semibold text-slate-800">중요 공지</span>
+                <Switch
+                  label="중요 공지"
+                  checked={draft.important}
+                  onChange={(important) => update({ important })}
+                />
+              </div>
+              <p className="mt-1 text-[13px] leading-5 text-slate-500">
+                {draft.type === 'app'
+                  ? '대상 국가 사용자에게 앱 실행 시 또는 앱 사용 중 팝업과 푸시 알림으로 표시됩니다.'
+                  : '대상 서비스를 예약했거나 이용 중이고, 그 기간이 게시 기간과 겹치는 사용자에게 앱 실행 시 또는 앱 사용 중 팝업과 푸시 알림으로 표시됩니다.'}
+              </p>
+            </div>
+
+            <div role="separator" className="-mx-3 h-px bg-slate-200" />
+
+            {draft.type === 'mobility' && hasCountries && (
+              <>
+                <ScopePicker
+                  unit="도시"
+                  options={cityOpts}
+                  value={draft.cities}
+                  onChange={(cities) => update({ cities })}
+                  emptyText={`${server?.name ?? ''}에 도시가 없습니다.`}
+                />
+                {hasCities && (
+                  <ScopePicker
+                    unit="서비스"
+                    options={serviceOpts}
+                    value={draft.services}
+                    onChange={(services) => update({ services })}
+                    emptyText="선택한 도시에서 제공되는 서비스가 없습니다."
+                  />
+                )}
+                {hasCities && (draft.services.all || draft.services.ids.length > 0) && (
+                  <p
+                    className={`rounded-md px-2 py-1.5 text-[14px] leading-5 ${
+                      serviceWide ? 'bg-teal-50 text-teal-800' : 'bg-blue-50 text-blue-800'
+                    }`}
+                  >
+                    {serviceWide
+                      ? '"서비스 전체" 공지 → Ride 탭과 각 서비스 랜딩에 노출'
+                      : '각 서비스 랜딩에 노출. 사용자가 선택한 도시에서 이용 가능한 서비스를 모두 포함하면 Ride 탭에도 노출'}
+                  </p>
+                )}
+              </>
+            )}
+
+            <div className="flex items-center gap-2">
+              <Button variant="primary" size="lg" className="flex-1" onClick={submit}>
+                {editing ? '수정 저장' : '발행'}
+              </Button>
+              <Button size="lg" onClick={closeForm}>
+                취소
+              </Button>
+            </div>
+            {error && <p className={`text-[14px] ${tried ? 'font-medium text-red-600' : 'text-slate-500'}`}>{error}</p>}
         </div>
-        {error && <p className={`text-[14px] ${tried ? 'font-medium text-red-600' : 'text-slate-500'}`}>{error}</p>}
-      </div>
-
+      ) : (
+        <Button variant="primary" size="lg" className="w-full" disabled={!server} onClick={openNew}>
+          + 공지 발행
+        </Button>
+      )}
     </Column>
   )
 }

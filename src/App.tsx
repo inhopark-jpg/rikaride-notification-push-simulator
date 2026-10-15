@@ -113,7 +113,7 @@ export default function App() {
       </header>
 
       <main className="min-h-0 flex-1 overflow-x-auto">
-        <div className="grid h-full min-w-[1680px] grid-cols-[640px_520px_minmax(420px,1fr)] gap-5 p-6">
+        <div className="grid h-full min-w-[1420px] grid-cols-[380px_520px_minmax(420px,1fr)] gap-5 p-6">
           <AdminColumn
             key={formKey}
             config={config}

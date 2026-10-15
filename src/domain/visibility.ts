@@ -108,9 +108,14 @@ export function compareNotices(a: Notice, b: Notice): number {
   return b.publishedAt - a.publishedAt
 }
 
-/** 구성이 바뀌어 더는 유효하지 않은 국가/도시/예약을 사용자 상태에서 걸러낸다 */
+/**
+ * 구성이 바뀌어 더는 유효하지 않은 국가/도시/예약을 사용자 상태에서 걸러낸다.
+ * 앱 국가는 미설정일 수 없다: 없거나 사라졌으면 서비스 운영 국가 중 맨 위 국가로 정한다.
+ */
 export function sanitizeUser(user: UserState, config: ServiceConfig): UserState {
-  const countryId = config.countries.some((c) => c.id === user.countryId) ? user.countryId : null
+  const countryId = config.countries.some((c) => c.id === user.countryId)
+    ? user.countryId
+    : (config.countries[0]?.id ?? null)
   const cityIds = user.cityIds.filter((id) =>
     config.cities.some((c) => c.id === id && c.countryId === countryId),
   )
